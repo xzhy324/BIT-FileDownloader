@@ -4,7 +4,6 @@ import os
 from tqdm import tqdm
 import logging
 
-
 # 测试链接 linux内核
 # https://opus.nlpl.eu/download.php?f=ada83/v1/tmx/en-ru.tmx.gz
 # https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.16.tar.xz
@@ -25,6 +24,10 @@ def entry(url, output, concurrency):
         ascii=True,  # windows下正确显示需要指定显示模式为utf8
         desc=target_filename  # 在进度条前方显示下载的文件名
         )
+    headers = {
+        'range':'bytes=%d-' % 0
+    }
+    # stream=True + iter_content指定chunk_size，能够实现分块的流式下载
     my_response = requests.get(url, stream=True)
     my_response.raise_for_status()
     with open(target_filename, 'wb') as fp:
@@ -36,5 +39,6 @@ def entry(url, output, concurrency):
 
 
 if __name__ == '__main__':
+
     logging.basicConfig(level='INFO')  # 设置日志的默认响应级别为DEbug
     entry()
