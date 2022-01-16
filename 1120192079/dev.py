@@ -7,8 +7,8 @@ from concurrent import futures
 import threading
 import time
 
-
 settings = {}  # 配置文件，从settings.txt中加载
+
 
 # 测试链接
 # opus语料库中的一份语料
@@ -36,20 +36,25 @@ def _download_by_range(lock, url, segment_id, start, end, target_filename):
         logging.error("segment[%d]:bytes=%d-%d failed!" % (segment_id, start, end))
         return {'cracked': True}
 
-    lock.aqquire()  # 将内存中下载好的内容保存到磁盘中需要读写锁
+    lock.acquire()  # 将内存中下载好的内容保存到磁盘中需要读写锁
     try:
         with open(target_filename, mode='rb+') as fp:
             fp.seek(start)  # 定位到起始字节
             fp.write(r.content)
     except Exception as e:
-        logging.error("segment[{}]:bytes={}}-{} failed!,Reason:{}".format(segment_id, start, end, e))
-        return {'cracked': True}
+        logging.error("segment[{}]:bytes={}-{} failed!,Reason:{}".format(segment_id, start, end, e))
+        return {
+            'cracked': True,
+            'segment_id': segment_id
+        }
     finally:
         lock.release()
-    logging.debug("segment[{}]:bytes={}}-{} downloaded!".format(segment_id, start, end))
+
+    logging.debug("segment[{}]:bytes={}-{} downloaded!".format(segment_id, start, end))
     return {
         'cracked': False,
-        'segment_id': segment_id
+        'segment_id': segment_id,
+        'seg_size': expected_segment_length
     }
 
 
@@ -61,7 +66,7 @@ def entry(url, output, concurrency):
     """
     :param url: URL to download
     :param output: Output filename
-    :param concurrency: oncurrency number (default: 8)
+    :param concurrency: Concurrency number (default: 8)
     :return: None
     """
     target_filename = os.path.join(output, os.path.basename(url))
@@ -77,20 +82,28 @@ def entry(url, output, concurrency):
     if not r:
         logging.error("Get URL headers failed.Task aborted!")
         return
-    file_size = int(r.headers['Content-Length'])
-    logging.info("file_size %d Bytes" % file_size)
+    logging.debug(r.content)
 
-    if r.status_code == 206:  # 多线程下载
+    file_size = int(r.headers['Content-Length'])
+    logging.debug("file_size %d Bytes" % file_size)
+
+    r = requests.head(url, headers={'Range': 'bytes=0-0'})  # 请求一个字节以判断是否支持range请求
+
+    # 多线程下载
+    if r.status_code == 206:  # 支持range请求
+        logging.info("MultiThread Supported! Concurrency:{} ".format(concurrency))
         # 由于 _download_by_range 中使用 rb+ 模式，必须先保证文件存在，所以要先创建指定大小的临时文件 (用0填充)
         mt_chunk_size = int(settings['chunk_size'])  # 加载多线程下载中所使用的分块大小
         with open(target_filename, 'wb') as fp:
             fp.seek(file_size - 1)
             fp.write(b'\0')
 
+        # 注意with as 块在结束的时候会调用__exit__方法，而ThreadPoolExecutor的退出函数（.shutdown()）是等待所有的线程任务完成，隐含了一层同步的语义
         with futures.ThreadPoolExecutor(max_workers=concurrency) as executor:
+            # 计算分块的数量
             tmp_part_count, tmp_mod = divmod(file_size, mt_chunk_size)
             segments = tmp_part_count if tmp_mod == 0 else int(tmp_part_count) + 1
-            logging.info("chunk_count %d Bytes chunk mod %d" % (tmp_part_count, tmp_mod))
+            logging.debug("chunk_count %d Bytes, chunk_mod %d" % (tmp_part_count, tmp_mod))
 
             lock = threading.Lock()  # 创建互斥文件读写锁
             thread_queue = []  # 线程标记队列
@@ -104,13 +117,35 @@ def entry(url, output, concurrency):
                                          target_filename)
                 thread_queue.append(future)
 
-    else:  # 单线程下载
+            # futures.as_completed([future set]) 返回已经完成任务的线程future
+            completed_futures = futures.as_completed(thread_queue)
+            with tqdm(
+                    unit='B',  # 默认为位，改为字节作为默认单位
+                    unit_divisor=1024,  # 将传输速率的单位改为存储字节的单位
+                    unit_scale=True,  # 自动扩展单位
+                    ascii=True,  # windows下正确显示需要指定显示模式为utf8
+                    desc=target_filename,  # 在进度条前方显示下载的文件名
+                    total=file_size) as bar:
+                for future in completed_futures:
+                    # result()方法指向回调函数的返回值
+                    res = future.result()
+                    if res.get("cracked"):
+                        logging.error("part {} has cracked".format(res.get("segment_id")))
+                    else:
+                        bar.update(res.get('seg_size'))
+
+        logging.info("download completed!")
+
+    # 单线程下载
+    else:
+        logging.info("The HTTP File doesn't support multithreading-download")
         bar = tqdm(
             unit='B',  # 默认为位，改为字节作为默认单位
             unit_divisor=1024,  # 将传输速率的单位改为存储字节的单位
             unit_scale=True,  # 自动扩展单位
             ascii=True,  # windows下正确显示需要指定显示模式为utf8
-            desc=target_filename  # 在进度条前方显示下载的文件名
+            desc=target_filename,  # 在进度条前方显示下载的文件名
+            total=file_size
         )
         single_response = requests.get(url, stream=True)
         single_response.raise_for_status()
@@ -119,7 +154,7 @@ def entry(url, output, concurrency):
                 if chunk:  # chunk的大小不为零，继续下载
                     fp.write(chunk)
                     bar.update(len(chunk))
-        logging.info("download completed")
+        logging.info("download completed!")
 
 
 # 加载配置文件并指定控制台日志的级别
@@ -145,4 +180,4 @@ if __name__ == '__main__':
     entry()
     end_time = time.time()
 
-    print("total time: {}", format(end_time - start_time))
+    logging.info("total time: {}", format(end_time - start_time))

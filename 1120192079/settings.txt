@@ -1,2 +1,2 @@
 chunk_size 1024  # 多线程分块大小
-logging.level INFO # 输出日志级别
+logging.level INFO # 输出日志级别(DEBUG-INFO-WARNING-ERROR)
