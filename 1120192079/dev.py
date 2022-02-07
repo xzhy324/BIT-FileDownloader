@@ -58,12 +58,7 @@ def _download_by_range(lock, url, segment_id, start, end, target_filename):
     }
 
 
-@click.command()
-@click.option("-u", "--url", prompt='URL', help='URL to download')
-@click.option('-o', '--output', default='./', help='Output filename')
-@click.option('-n', '--concurrency', default=8, help='Concurrency number (default: 8)')
-@click.option('-i', '--input', help='filename with multiple URL')
-def entry(url, output, concurrency,input):
+def start_single_task(url, output, concurrency):
     target_filename = os.path.join(output, os.path.basename(url))
 
     # 判断临时文件是否存在
@@ -83,7 +78,6 @@ def entry(url, output, concurrency,input):
     logging.debug("file_size %d Bytes" % file_size)
 
     r = requests.head(url, headers={'Range': 'bytes=0-0'})  # 请求一个字节以判断是否支持range请求
-
 
     start_time = time.time()
     # 多线程下载
@@ -110,6 +104,7 @@ def entry(url, output, concurrency,input):
                 # 注意若当前块为最后一块，则结束字节需要重新指定
                 if segment_id == segments - 1:
                     end_byte = file_size - 1
+                # 对每个线程调用_download_by_range函数，函数的返回值可以通过future对象的result方法得到
                 future = executor.submit(_download_by_range, lock, url, segment_id, start_byte, end_byte,
                                          target_filename)
                 thread_queue.append(future)
@@ -162,6 +157,21 @@ def entry(url, output, concurrency,input):
     else:
         logging.info("download completed! Total time:%dh:%02dm:%02ds" % (hour, minutes, sec))
 
+@click.command()
+@click.option("-u", "--url", help='URL to download',multiple=True)
+@click.option('-o', '--output', default='./', help='Output filename')
+@click.option('-n', '--concurrency', default=8, help='Concurrency number (default: 8)')
+@click.option('-i', '--input', help='filename with multiple URL')
+# 根据下载url的数量和是否指定了下载文件列表来分发任务
+def entry(url, output, concurrency,input):
+    for single_url in url:
+        start_single_task(single_url, output, concurrency)
+    if input is not None:
+        if not os.path.exists(input):
+            logging.error("Input file does not exist!")
+            with open(input, 'r') as f:
+                for single_url in f.readlines():
+                    start_single_task(single_url, output, concurrency)
 
 # 加载配置文件并指定控制台日志的级别
 def init_settings():
