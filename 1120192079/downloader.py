@@ -7,10 +7,8 @@ from concurrent import futures
 import threading
 import time
 from tinyftp import ftpDownload
-from getpass import getpass
 
 settings = {}  # 配置文件，从settings.txt中加载
-
 
 # 测试链接
 # opus语料库中的一份语料
@@ -61,7 +59,12 @@ def _download_by_range(lock, url, segment_id, start, end, target_filename):
 
 
 def start_single_task(url, output, concurrency):
-
+    """
+    :param url: 下载地址
+    :param output: 输出目录
+    :param concurrency: 线程数
+    :return: None
+    """
     target_filename = os.path.join(output, os.path.basename(url))
 
     # 判断临时文件是否存在
@@ -69,8 +72,14 @@ def start_single_task(url, output, concurrency):
         logging.error("The File has already been created!")
         return
 
-    # 在头文件中请求一个字节，以测定网站是否满足多线程的下载方式
-    r = requests.head(url)
+    #  判断url是否是request可以请求的
+
+    try:
+        r = requests.head(url)
+    except requests.exceptions.RequestException as e:
+        logging.error("cannot open url")
+        return
+
     # 判断是否能够正常连接
     if not r:
         logging.error("Get URL headers failed.Task aborted!")
@@ -182,11 +191,18 @@ def entry(url, output, concurrency, input, ftp):
     # 从ftp下载
     # TODO
     if ftp == 'true':
-        host = input("please enter ftp host url:")
-        username = input("username:")
-        password = getpass("password:")
-        remotefile = input("remote file name:")
-        localpath = input("local storage path:")
+        input_stream = click.get_text_stream('stdin')
+        click.echo("please enter ftp host url:", nl=False)
+        host = input_stream.readline()[:-1]
+        click.echo("username:",nl=False)
+        username = input_stream.readline()[:-1]
+        click.echo("password:", nl=False)
+        password = input_stream.readline()[:-1]
+        click.echo("remote file name:", nl=False)
+        remotefile = input_stream.readline()[:-1]
+        click.echo("local storage path:", nl=False)
+        localpath = input_stream.readline()[:-1]
+
         ftpDownload(host=host,
                     username=username,
                     password=password,

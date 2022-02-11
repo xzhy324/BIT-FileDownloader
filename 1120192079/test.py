@@ -8,7 +8,6 @@ import logging
 from concurrent import futures
 import threading
 import time
-import strgen
 import os
 
 
@@ -22,13 +21,17 @@ import os
 # https://img2020.cnblogs.com/blog/1744409/202201/1744409-20220112155511412-749056801.png
 
 
-
+@click.command()
+@click.option("--f")
+def entry(f):
+    if f is not None:
+        input_stream = click.get_text_stream('stdin')
+        click.echo("username:",nl=False)
+        click.echo("sdfsdf")
+        click.echo("here is:" + input_stream.readline()[:-1])
+        click.echo("password:")
+        click.echo("here is:" + input_stream.readline()[:-1])
 
 
 if __name__ == '__main__':
-    print(strgen.StringGenerator("[\d\w]{10}").render())
-    r = requests.head("https://www.yuque.com/yuanjiang24/pfqshi/vymt9/")
-    if not r:
-        print("asdfadf")
-    print(sys.argv[0])
-
+    entry()

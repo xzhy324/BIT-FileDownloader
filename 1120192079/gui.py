@@ -1,7 +1,7 @@
 import sys
-import UIForm_ver2 as UIForm
+import UIForm as UIForm
 from PyQt6.QtWidgets import QApplication, QWidget, QFileDialog, QMainWindow
-import dev as coreDownloader
+import downloader as coreDownloader
 import os
 import logging
 from RedirectConsole import EmittingConsole
@@ -61,7 +61,7 @@ class MainForm(QMainWindow):
         try:
             os.startfile("./settings.txt")
         except OSError as e:
-            logging.error("error opening settings.txt")
+            logging.error("error opening settings.txt,reason: %s" % e)
         else:
             # 编辑完设置之后更新
             self.updateSettings()

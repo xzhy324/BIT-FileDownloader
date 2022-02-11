@@ -1,3 +1,4 @@
+import ftplib
 import os
 import logging
 from ftplib import FTP
@@ -6,8 +7,12 @@ from ftplib import FTP
 def ftpDownload(host, username, password, remotefile, localpath, port=21):
     # 连接ftp远程服务器
     ftp = FTP()
-    ftp.connect(host, port)
-    ftp.login(username, password)
+    try:
+        ftp.connect(host, port)
+        ftp.login(username, password)
+    except ftplib.all_errors as e:
+        logging.error("Cannot Connect to FTP Server!")
+        return
     # 获取文件名以及本地的文件完整路径
     filename = os.path.basename(remotefile)
     localfile = os.path.join(localpath, filename)

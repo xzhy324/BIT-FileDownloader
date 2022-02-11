@@ -48,9 +48,9 @@
 1. argsparser
 2. click
 
-采用click包作为最终的模块选择
+由于python自带的argsparser功能较为单一，采用click包作为最终的模块选择
 
-多线程涉及调试的问题，采用python自带的logging库进行调试
+多线程涉及调试的问题，采用python自带的logging库进行基于日志的调试
 
 多线程本身采用multithreading库实现，对于每一线程所下载的内容，还应该检查ETag（最近修改标志）
 
@@ -74,7 +74,7 @@
    >
    > [concurrent.futures --- 启动并行任务 — Python 3.10.2 文档](https://docs.python.org/zh-cn/3/library/concurrent.futures.html)
    
-   
+6. 
 
 ### 第二阶段思路
 
@@ -202,4 +202,9 @@
 
 1. 完成测试文档以及单元测试+集成测试
 2. 完成设计实现过程以及解题思路的描述
-3. 
+
+### 2月11日
+
+1. 完善了第二阶段的测试用例以及修复了一些bug
+2. 增加了运行说明，完善了部分文档
+3. 解决了click修饰的函数内无法使用标准库中input函数的问题
