@@ -6,6 +6,7 @@ import logging
 from concurrent import futures
 import threading
 import time
+import strgen
 
 
 
@@ -18,19 +19,9 @@ import time
 # https://img2020.cnblogs.com/blog/1744409/202201/1744409-20220112155511412-749056801.png
 
 
-@click.command()
-@click.option("-u", "--url", prompt='URL', help='URL to download',multiple=True)
-@click.option('-o', '--output', default='./', help='Output filename')
-@click.option('-n', '--concurrency', default=8, help='Concurrency number (default: 8)')
-@click.option('-i', '--input', help='filename with multiple URL')
-def entry(url, output, concurrency,input):
-    if input == None:
-        print('input none')
 
-    for single in url:
-        print(single)
-    pass
 
 
 if __name__ == '__main__':
-    entry()
+    print(strgen.StringGenerator("[\d\w]{10}").render())
+

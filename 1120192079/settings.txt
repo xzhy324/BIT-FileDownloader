@@ -1,2 +1,5 @@
-chunk_size 1024  # 多线程分块大小
+chunk_size 1024  # 多线程分块大小，单位：字节
 logging.level INFO # 输出日志级别(DEBUG-INFO-WARNING-ERROR)
+concurrency 8  # 默认线程数大小
+output ./  # 默认输出位置
+template_language 0 # 是否采用正则

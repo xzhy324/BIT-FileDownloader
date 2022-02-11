@@ -6,6 +6,8 @@ import logging
 from concurrent import futures
 import threading
 import time
+from tinyftp import ftpDownload
+from getpass import getpass
 
 settings = {}  # 配置文件，从settings.txt中加载
 
@@ -157,21 +159,39 @@ def start_single_task(url, output, concurrency):
     else:
         logging.info("download completed! Total time:%dh:%02dm:%02ds" % (hour, minutes, sec))
 
+
 @click.command()
-@click.option("-u", "--url", help='URL to download',multiple=True)
+@click.option('-u', '--url', help='URL to download', multiple=True)
 @click.option('-o', '--output', default='./', help='Output filename')
 @click.option('-n', '--concurrency', default=8, help='Concurrency number (default: 8)')
 @click.option('-i', '--input', help='filename with multiple URL')
+@click.option('--ftp', help="ftpDownload:true,false[default]", default='false')
 # 根据下载url的数量和是否指定了下载文件列表来分发任务
-def entry(url, output, concurrency,input):
+def entry(url, output, concurrency, input, ftp):
+    # 批量url下载
     for single_url in url:
         start_single_task(single_url, output, concurrency)
+    # 从文件下载
     if input is not None:
         if not os.path.exists(input):
             logging.error("Input file does not exist!")
             with open(input, 'r') as f:
                 for single_url in f.readlines():
                     start_single_task(single_url, output, concurrency)
+    # 从ftp下载
+    # TODO
+    if ftp == 'true':
+        host = input("please enter ftp host url:")
+        username = input("username:")
+        password = getpass("password:")
+        remotefile = input("remote file name:")
+        localpath = input("local storage path:")
+        ftpDownload(host=host,
+                    username=username,
+                    password=password,
+                    remotefile=remotefile,
+                    localpath=localpath)
+
 
 # 加载配置文件并指定控制台日志的级别
 def init_settings():
@@ -187,6 +207,7 @@ def init_settings():
             settings[config_name] = config_value
     # print(settings)
     logging.basicConfig(level=settings['logging.level'])  # 设置日志的默认响应级别为INFO,按需要更改成为debug，默认等级为warning
+
 
 if __name__ == '__main__':
     init_settings()
