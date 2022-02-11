@@ -1,12 +1,16 @@
 import ftplib
 import os
 import logging
-from ftplib import FTP
 
 
-def ftpDownload(host, username, password, remotefile, localpath, port=21):
+class FtpDownloader:
+    def start_task(self, host, username, password, remotefile, localpath):
+        _ftpDownload(host, username, password, remotefile, localpath)
+
+
+def _ftpDownload(host, username, password, remotefile, localpath, port=21):
     # 连接ftp远程服务器
-    ftp = FTP()
+    ftp = ftplib.FTP()
     try:
         ftp.connect(host, port)
         ftp.login(username, password)

@@ -71,6 +71,6 @@ class Ui_MainWindow(object):
         self.label.setText(_translate("MainWindow", "URL:"))
         self.label2.setText(_translate("MainWindow","Status:"))
         self.btn_ftp.setText(_translate("MainWindow", "FTP Download"))
-        self.btn_Download.setText(_translate("MainWindow", "Download"))
+        self.btn_Download.setText(_translate("MainWindow", "HTTP(s) Download"))
         self.menu.setTitle(_translate("MainWindow", "FIle"))
         self.actionOpen_Settings_txt.setText(_translate("MainWindow", "Open Settings.txt"))
