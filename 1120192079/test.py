@@ -1,3 +1,5 @@
+import sys
+
 import requests
 import click
 import os
@@ -7,6 +9,7 @@ from concurrent import futures
 import threading
 import time
 import strgen
+import os
 
 
 
@@ -24,4 +27,8 @@ import strgen
 
 if __name__ == '__main__':
     print(strgen.StringGenerator("[\d\w]{10}").render())
+    r = requests.head("https://www.yuque.com/yuanjiang24/pfqshi/vymt9/")
+    if not r:
+        print("asdfadf")
+    print(sys.argv[0])
 

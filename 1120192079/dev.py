@@ -1,6 +1,7 @@
 import requests
 import click
 import os
+import re
 from tqdm import tqdm
 import logging
 from concurrent import futures
@@ -68,8 +69,14 @@ def start_single_task(url, output, concurrency):
         logging.error("The File has already been created!")
         return
 
-    # 在头文件中请求一个字节，以测定网站是否满足多线程的下载方式
-    r = requests.head(url)
+    #  判断url是否是request可以请求的
+    r = None
+    try:
+        r = requests.head(url)
+    except requests.exceptions.RequestException as e:
+        logging.error("cannot open url")
+        return
+
     # 判断是否能够正常连接
     if not r:
         logging.error("Get URL headers failed.Task aborted!")

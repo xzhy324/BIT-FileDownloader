@@ -1,34 +1,38 @@
 import sys
-import myUIForm
-from PyQt6.QtWidgets import QApplication, QWidget, QFileDialog
+import UIForm_ver2 as UIForm
+from PyQt6.QtWidgets import QApplication, QWidget, QFileDialog, QMainWindow
 import dev as coreDownloader
 import os
 import logging
 from RedirectConsole import EmittingConsole
 
 
-class MainForm(QWidget):
+class MainForm(QMainWindow):
     _settings = {}
 
     def __init__(self, parent=None):
         super(QWidget, self).__init__(parent)
 
-        self.ui = myUIForm.Ui_Form()
+        self.ui = UIForm.Ui_MainWindow()
         self.ui.setupUi(self)  # ui对象初始化的时候，须将自身指针传给ui类，以供其中控件对象初始化
 
+        # 初始化剪切板
         self.clipboard = QApplication.clipboard()
 
-        coreDownloader.init_settings()
-        self._settings = coreDownloader.settings
+        # 从文件中读取并更新设定
+        self.updateSettings()
 
         # 重定向输出
         # sys.stdout = EmittingConsole(text_signal=self.writeConsoleToTextEdit)
         # sys.stderr = EmittingConsole(text_signal=self.writeConsoleToTextEdit)
 
-
         # 测试重定向
         # print("lalala")
         # logging.info("bababa")
+
+    def updateSettings(self):
+        coreDownloader.init_settings()
+        self._settings = coreDownloader.settings
 
     def inputFileClicked(self):
         fname = QFileDialog.getOpenFileName(self, '打开文件', './')
@@ -53,11 +57,21 @@ class MainForm(QWidget):
     def writeConsoleToTextEdit(self, text):
         self.ui.textBrowser.append(text)
 
+    def OpenSettingsFile(self):
+        try:
+            os.startfile("./settings.txt")
+        except OSError as e:
+            logging.error("error opening settings.txt")
+        else:
+            # 编辑完设置之后更新
+            self.updateSettings()
+
     def clipboardChanged(self):
         # TODO:剪切板的槽函数
-
         pass
 
+    def ftpClicked(self):
+        pass
 
 
 if __name__ == '__main__':

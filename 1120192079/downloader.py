@@ -6,6 +6,8 @@ import logging
 from concurrent import futures
 import threading
 import time
+from tinyftp import ftpDownload
+from getpass import getpass
 
 settings = {}  # 配置文件，从settings.txt中加载
 
@@ -58,17 +60,8 @@ def _download_by_range(lock, url, segment_id, start, end, target_filename):
     }
 
 
-@click.command()
-@click.option("-u", "--url", prompt='URL', help='URL to download')
-@click.option('-o', '--output', default='./', help='Output filename')
-@click.option('-n', '--concurrency', default=8, help='Concurrency number (default: 8)')
-def entry(url, output, concurrency):
-    """
-    :param url: URL to download
-    :param output: Output filename
-    :param concurrency: Concurrency number (default: 8)
-    :return: None
-    """
+def start_single_task(url, output, concurrency):
+
     target_filename = os.path.join(output, os.path.basename(url))
 
     # 判断临时文件是否存在
@@ -89,6 +82,7 @@ def entry(url, output, concurrency):
 
     r = requests.head(url, headers={'Range': 'bytes=0-0'})  # 请求一个字节以判断是否支持range请求
 
+    start_time = time.time()
     # 多线程下载
     if r.status_code == 206:  # 支持range请求
         logging.info("MultiThread Supported! Concurrency:{} ".format(concurrency))
@@ -113,6 +107,7 @@ def entry(url, output, concurrency):
                 # 注意若当前块为最后一块，则结束字节需要重新指定
                 if segment_id == segments - 1:
                     end_byte = file_size - 1
+                # 对每个线程调用_download_by_range函数，函数的返回值可以通过future对象的result方法得到
                 future = executor.submit(_download_by_range, lock, url, segment_id, start_byte, end_byte,
                                          target_filename)
                 thread_queue.append(future)
@@ -124,7 +119,7 @@ def entry(url, output, concurrency):
                     unit_divisor=1024,  # 将传输速率的单位改为存储字节的单位
                     unit_scale=True,  # 自动扩展单位
                     ascii=True,  # windows下正确显示需要指定显示模式为utf8
-                    desc=target_filename,  # 在进度条前方显示下载的文件名
+                    desc=os.path.basename(target_filename),  # 在进度条前方显示下载的文件名
                     total=file_size) as bar:
                 for future in completed_futures:
                     # result()方法指向回调函数的返回值
@@ -133,8 +128,6 @@ def entry(url, output, concurrency):
                         logging.error("part {} has cracked".format(res.get("segment_id")))
                     else:
                         bar.update(res.get('seg_size'))
-
-        logging.info("download completed!")
 
     # 单线程下载
     else:
@@ -154,7 +147,51 @@ def entry(url, output, concurrency):
                 if chunk:  # chunk的大小不为零，继续下载
                     fp.write(chunk)
                     bar.update(len(chunk))
-        logging.info("download completed!")
+
+    # 下载完成，提示信息并打印花费时间
+    time_gap = time.time() - start_time
+    minutes, sec = divmod(time_gap, 60)
+    hour, minutes = divmod(minutes, 60)
+
+    if hour == 0 and minutes == 0:
+        logging.info("download completed! Total time:%.2fs " % sec)
+    elif hour == 0:
+        logging.info("download completed! Total time:%dm:%.2fs" % (minutes, sec))
+    else:
+        logging.info("download completed! Total time:%dh:%02dm:%02ds" % (hour, minutes, sec))
+
+
+@click.command()
+@click.option('-u', '--url', help='URL to download', multiple=True)
+@click.option('-o', '--output', default='./', help='Output filename')
+@click.option('-n', '--concurrency', default=8, help='Concurrency number (default: 8)')
+@click.option('-i', '--input', help='filename with multiple URL')
+@click.option('--ftp', help="ftpDownload:true,false[default]", default='false')
+# 根据下载url的数量和是否指定了下载文件列表来分发任务
+def entry(url, output, concurrency, input, ftp):
+    # 批量url下载
+    for single_url in url:
+        start_single_task(single_url, output, concurrency)
+    # 从文件下载
+    if input is not None:
+        if not os.path.exists(input):
+            logging.error("Input file does not exist!")
+            with open(input, 'r') as f:
+                for single_url in f.readlines():
+                    start_single_task(single_url, output, concurrency)
+    # 从ftp下载
+    # TODO
+    if ftp == 'true':
+        host = input("please enter ftp host url:")
+        username = input("username:")
+        password = getpass("password:")
+        remotefile = input("remote file name:")
+        localpath = input("local storage path:")
+        ftpDownload(host=host,
+                    username=username,
+                    password=password,
+                    remotefile=remotefile,
+                    localpath=localpath)
 
 
 # 加载配置文件并指定控制台日志的级别
@@ -175,9 +212,4 @@ def init_settings():
 
 if __name__ == '__main__':
     init_settings()
-
-    start_time = time.time()
     entry()
-    end_time = time.time()
-
-    logging.info("total time: {}", format(end_time - start_time))
