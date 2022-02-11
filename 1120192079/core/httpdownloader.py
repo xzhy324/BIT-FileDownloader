@@ -5,6 +5,7 @@ import logging
 from concurrent import futures
 import threading
 import time
+import exrex
 
 
 def _download_by_range(lock, url, segment_id, start, end, target_filename):
@@ -50,22 +51,37 @@ class HttpDownloader:
     settings = {}
 
     def __init__(self):
-        #对象初始化时完成一次更新
+        # 对象初始化时完成一次更新
         self.update_settings()
 
+    def start_task(self, url: str, output: str, concurrency: int):
+        # 从配置文件中加载正则表达式的上限
+        regular_limit = int(self.settings.get('template_language'))
+        if regular_limit > 0:
+            urls = list(exrex.generate(url, regular_limit))
+            for single_url in urls:
+                self._start_single_task(url=single_url, output=output, concurrency=concurrency)
+        else:  # 若为0则表示不开启正则表达，普通处理单个url
+            self._start_single_task(url=url, output=output, concurrency=concurrency)
+
     # 指定了output和concurrency，此时按照指定的值下载
-    def start_single_task(self, url:str, output:str, concurrency:int):
+    def _start_single_task(self, url: str, output: str, concurrency: int):
         """
         :param url: 下载地址
         :param output: 输出目录
         :param concurrency: 线程数
         :return: None
         """
-        target_filename = os.path.join(output, os.path.basename(url))
+        #  通过网址形式先判断是否有文件可以下载
+        remote_filename = os.path.basename(url)
+        if remote_filename is '':
+            logging.error("The URL cannot be downloaded!")
+            return
 
+        target_filename = os.path.join(output, remote_filename)
         # 判断临时文件是否存在
         if os.path.exists(target_filename):
-            logging.error("The File has already been created!")
+            logging.error("The File %s has already been created!" % target_filename)
             return
 
         #  判断url是否是request可以请求的
@@ -73,17 +89,22 @@ class HttpDownloader:
         try:
             r = requests.head(url)
         except requests.exceptions.RequestException as e:
-            logging.error("cannot open url")
+            logging.error("cannot open url, reason: %s" % e)
             return
 
         # 判断是否能够正常连接
         if not r:
             logging.error("Get URL headers failed.Task aborted!")
             return
+
         logging.debug(r.content)
 
-        file_size = int(r.headers['Content-Length'])
-        logging.debug("file_size %d Bytes" % file_size)
+        file_size = r.headers.get('Content-Length')
+        if file_size is None:
+            logging.info('failed to get content size')  # 注意有些下载无法请求到文件大小，仍可以流式下载
+        else:
+            file_size = int(file_size)
+            logging.debug("file_size %d Bytes" % file_size)
 
         r = requests.head(url, headers={'Range': 'bytes=0-0'})  # 请求一个字节以判断是否支持range请求
 
@@ -165,11 +186,11 @@ class HttpDownloader:
         else:
             logging.info("download completed! Total time:%dh:%02dm:%02ds" % (hour, minutes, sec))
 
-    # 只指定了url，此时的output路径和concurrency线程数从成员字典settings中加载
+    # 只指定了url，此时的output路径和concurrency线程数从成员字典settings中加载,GUI版本全部使用该函数
     def start_default_task(self, url):
         output = self.settings.get('output')
         concurrency = int(self.settings.get('concurrency'))
-        self.start_single_task(url, output, concurrency)
+        self._start_single_task(url, output, concurrency)
 
     # 加载配置文件并指定控制台日志的级别
     def update_settings(self):
@@ -184,4 +205,5 @@ class HttpDownloader:
                 config_value = line[1]
                 self.settings[config_name] = config_value
         # print(settings)
-        logging.basicConfig(level=self.settings['logging.level'])  # 设置日志的默认响应级别为INFO,按需要更改成为debug，默认等级为warning
+        logging.basicConfig(level=self.settings['logging.level'],  # 设置日志的默认响应级别为INFO,按需要更改成为debug，默认等级为warning
+                            format='[%(asctime)s] %(filename)s:%(lineno)s - [%(levelname)s] %(message)s')  # 规定logging的输出格式

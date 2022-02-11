@@ -9,8 +9,7 @@ from concurrent import futures
 import threading
 import time
 import os
-
-
+import exrex
 
 # 测试链接
 # opus语料库中的一份语料
@@ -21,17 +20,8 @@ import os
 # https://img2020.cnblogs.com/blog/1744409/202201/1744409-20220112155511412-749056801.png
 
 
-@click.command()
-@click.option("--f")
-def entry(f):
-    if f is not None:
-        input_stream = click.get_text_stream('stdin')
-        click.echo("username:",nl=False)
-        click.echo("sdfsdf")
-        click.echo("here is:" + input_stream.readline()[:-1])
-        click.echo("password:")
-        click.echo("here is:" + input_stream.readline()[:-1])
-
-
 if __name__ == '__main__':
-    entry()
+    input = 'http://www\.gov\.cn/xinwen/2022-02/11/content_567304[0-9]\.htm'
+    urls = list(exrex.generate(input, 100))
+    for url in urls:
+        print(url)

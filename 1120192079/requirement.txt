@@ -2,3 +2,4 @@ requests
 tqdm
 click
 PyQt6
+exrex

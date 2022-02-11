@@ -1,10 +1,11 @@
 import sys
-import UIForm as UIForm
-from PyQt6.QtWidgets import QApplication, QFileDialog, QMainWindow
-import downloader
 import os
 import logging
-from my_output_stream import MyOutputStream
+from PyQt6.QtWidgets import QApplication, QFileDialog, QMainWindow
+
+import downloader
+from GUI import UIForm
+from GUI.my_output_stream import MyOutputStream
 
 
 class MainForm(QMainWindow):
@@ -17,11 +18,14 @@ class MainForm(QMainWindow):
 
         # 初始化剪切板
         self.clipboard = QApplication.clipboard()
-        # 改变日志的输出位置
-        self.logger = self.setupLogger()
+
+        self.http_downloader = downloader.HttpDownloader()
+
+        # 由于logger初始化需要使用downloader的配置信息，因此downloader需要先实例化
+        self.logger = self._setupLogger()  # 改变日志的输出位置
 
     # 增加日志的输出位置到qt的文本浏览器(textbrowser)控件中
-    def setupLogger(self):
+    def _setupLogger(self):
         """
         为此需要实现一个文件流式的对象，其中需要重写write方法。
         这里我的实现是在该文件流的write方法中发射一个信号，并由调用该文件流对象的MainForm中的函数槽来接收该信号
@@ -29,37 +33,38 @@ class MainForm(QMainWindow):
         """
 
         logger = logging.getLogger()
+
+        streamToTextbrowser = MyOutputStream(text_signal=self._writeConsoleToTextEdit)  # 重写输出流中的信号
+
         # 用重写的输出流来初始化logger的一个新的handler
-        StreamToTextBrowser = MyOutputStream(text_signal=self._writeConsoleToTextEdit)
-        logger.addHandler(logging.StreamHandler(StreamToTextBrowser))
+        handler = logging.StreamHandler(streamToTextbrowser)
+        formatter = logging.Formatter(
+            '[%(asctime)s] %(filename)s:%(lineno)s - [%(levelname)s] %(message)s')  # 规定输出格式
+        handler.setFormatter(formatter)  # 将输出格式指定到handler上
+        logger.addHandler(handler)
+
+        logger.setLevel(level=self.http_downloader.settings.get('logging.level'))
+
         # 重定向输出
         # sys.stdout = EmittingConsole(text_signal=self.writeConsoleToTextEdit)
         # sys.stderr = EmittingConsole(text_signal=self.writeConsoleToTextEdit)
-
-        # 测试重定向
-        # print("lalala")
-        # logging.info("bababa")
         return logger
 
     # 点击打开输入文件按钮的槽函数
     def inputFileClicked(self):
-        fname = QFileDialog.getOpenFileName(self, '打开文件', './')
-        if fname[0]:
-            with open(fname[0], 'r', encoding='utf-8', errors='ignore') as fp:
+        f_name = QFileDialog.getOpenFileName(self, '打开文件', './')
+        if f_name[0]:
+            with open(f_name[0], 'r', encoding='utf-8', errors='ignore') as fp:
                 self.ui.textEdit.setText(fp.read())
 
     # 点击http下载按钮的槽函数
     def downloadFileClicked(self):
-        # 从设置中获取下载的基本信息
+        # 从控件中获取下载的url
         urls = self.ui.textEdit.document().toPlainText().split()
-        # 每次点击下载按钮，都初始化一个downloader对象
-        http_downloader = downloader.HttpDownloader()  # 注意初始化对象时，会从磁盘重新加载配置文件
+        # 每次点击下载按钮，都从磁盘重新加载配置文件
+        self.http_downloader.update_settings()
         for url in urls:
-            self.ui.textBrowser.append("%s started!\n" % os.path.basename(url))
-            http_downloader.start_default_task(url)  # 从配置文件得到存放地址和线程数
-            self.ui.textBrowser.append("%s completed!\n" % os.path.basename(url))
-            # TODO
-            # 将logging的输出结果添加到textBrowser
+            self.http_downloader.start_default_task(url)  # 从配置文件得到存放地址和线程数
 
     # 日志重定向的槽函数
     def _writeConsoleToTextEdit(self, text):
@@ -75,15 +80,17 @@ class MainForm(QMainWindow):
 
     # 检测到剪切板变化的槽函数
     def clipboardChanged(self):
+        # TODO
         pass
 
     # 点击ftp下载按钮的槽函数
     def ftpClicked(self):
+        # TODO
         pass
 
 
 if __name__ == '__main__':
     my_app = QApplication(sys.argv)
-    my_widget = MainForm()
-    my_widget.show()
+    my_window = MainForm()
+    my_window.show()
     sys.exit(my_app.exec())
