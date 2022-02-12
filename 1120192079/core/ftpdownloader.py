@@ -15,7 +15,7 @@ def _ftpDownload(host, username, password, remotefile, localpath, port=21):
         ftp.connect(host, port)
         ftp.login(username, password)
     except ftplib.all_errors as e:
-        logging.error("Cannot Connect to FTP Server!")
+        logging.error("Cannot Connect to FTP Server! Reason: %s" % e)
         return
     # 获取文件名以及本地的文件完整路径
     filename = os.path.basename(remotefile)

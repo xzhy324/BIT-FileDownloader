@@ -58,10 +58,10 @@ class Ui_MainWindow(object):
         self.menubar.addAction(self.menu.menuAction())
 
         self.retranslateUi(MainWindow)
-        self.actionOpen_Settings_txt.triggered.connect(MainWindow.OpenSettingsFile) # type: ignore
-        self.btn_Download.clicked.connect(MainWindow.downloadFileClicked) # type: ignore
-        self.btn_inputFile.clicked.connect(MainWindow.inputFileClicked) # type: ignore
-        self.btn_ftp.clicked.connect(MainWindow.ftpClicked) # type: ignore
+        self.actionOpen_Settings_txt.triggered.connect(MainWindow.OpenSettingsFile)  # type: ignore
+        self.btn_Download.clicked.connect(MainWindow.downloadFileClicked)  # type: ignore
+        self.btn_inputFile.clicked.connect(MainWindow.inputFileClicked)  # type: ignore
+        self.btn_ftp.clicked.connect(MainWindow.ftpClicked)  # type: ignore
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -69,7 +69,7 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "FileDownloader"))
         self.btn_inputFile.setText(_translate("MainWindow", "Open File"))
         self.label.setText(_translate("MainWindow", "URL:"))
-        self.label2.setText(_translate("MainWindow","Status:"))
+        self.label2.setText(_translate("MainWindow", "Status:"))
         self.btn_ftp.setText(_translate("MainWindow", "FTP Download"))
         self.btn_Download.setText(_translate("MainWindow", "HTTP(s) Download"))
         self.menu.setTitle(_translate("MainWindow", "FIle"))

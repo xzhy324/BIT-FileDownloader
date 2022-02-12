@@ -34,7 +34,8 @@ class MainForm(QMainWindow):
 
         logger = logging.getLogger()
 
-        streamToTextbrowser = MyOutputStream(text_signal=self._writeConsoleToTextEdit)  # 重写输出流中的信号
+        # 自己重写的类文件输出流中的信号挂钩到父窗体的内部方法，该内部方法能够修改qt的控件内容，从而实现了日志文件输出的重定向
+        streamToTextbrowser = MyOutputStream(self._writeConsoleToTextEdit)
 
         # 用重写的输出流来初始化logger的一个新的handler
         handler = logging.StreamHandler(streamToTextbrowser)
@@ -77,6 +78,8 @@ class MainForm(QMainWindow):
             os.startfile("./settings.txt")
         except OSError as e:
             logging.error("error opening settings.txt,reason: %s" % e)
+        else:
+            self.http_downloader.update_settings()
 
     # 检测到剪切板变化的槽函数
     def clipboardChanged(self):

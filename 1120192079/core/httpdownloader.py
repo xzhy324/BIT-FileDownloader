@@ -8,6 +8,7 @@ import time
 import exrex
 
 
+# 多线程下载时供执行体对象调用的分段下载函数
 def _download_by_range(lock, url, segment_id, start, end, target_filename):
     """
     :param lock: 对磁盘的互斥读写锁
@@ -54,6 +55,8 @@ class HttpDownloader:
         # 对象初始化时完成一次更新
         self.update_settings()
 
+    # 命令行版本全部使用该函数
+    # 开始前会从内存的设置字典中检查是否开启了正则表达
     def start_task(self, url: str, output: str, concurrency: int):
         # 从配置文件中加载正则表达式的上限
         regular_limit = int(self.settings.get('template_language'))
@@ -64,6 +67,14 @@ class HttpDownloader:
         else:  # 若为0则表示不开启正则表达，普通处理单个url
             self._start_single_task(url=url, output=output, concurrency=concurrency)
 
+    # GUI版本全部使用该函数
+    # 只指定了url，此时的output路径和concurrency线程数从成员字典settings中加载
+    def start_default_task(self, url: str):
+        output = self.settings.get('output')
+        concurrency = int(self.settings.get('concurrency'))
+        self._start_single_task(url, output, concurrency)
+
+    # gui和命令行的入口函数均调用该函数，是下载功能的核心函数
     # 指定了output和concurrency，此时按照指定的值下载
     def _start_single_task(self, url: str, output: str, concurrency: int):
         """
@@ -186,13 +197,8 @@ class HttpDownloader:
         else:
             logging.info("download completed! Total time:%dh:%02dm:%02ds" % (hour, minutes, sec))
 
-    # 只指定了url，此时的output路径和concurrency线程数从成员字典settings中加载,GUI版本全部使用该函数
-    def start_default_task(self, url):
-        output = self.settings.get('output')
-        concurrency = int(self.settings.get('concurrency'))
-        self._start_single_task(url, output, concurrency)
-
     # 加载配置文件并指定控制台日志的级别
+    # 在类对象初始化以及每次修改settings.txt之后，应该调用该函数
     def update_settings(self):
         # default settings
         self.settings['chunk_size'] = 1024
