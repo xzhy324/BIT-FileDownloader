@@ -27,7 +27,7 @@ def entry(url, output, concurrency, input, ftp):
             with open(input, 'r') as f:
                 for single_url in f.readlines():
                     single_url = single_url.strip()  # 注意结尾的回车应该删去
-                    if single_url is '':
+                    if single_url == '':
                         continue  # 空行略过
                     http_downloader.start_task(url=single_url, output=output, concurrency=concurrency)
     # 从ftp下载
